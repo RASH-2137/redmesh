@@ -206,7 +206,7 @@ TAP version 13
 ```
 
 > [!IMPORTANT]
-> **Test Scope Notice:** 28 automated security-boundary tests currently pass, providing regression coverage for the implemented authentication, authorization, database-isolation, session, provisioning, and audit-integrity controls. These tests verify the operational correctness of the implemented security boundaries; they do not represent a mathematical proof of absolute security.
+> **Test Scope Notice:** 52 automated tests currently pass, providing complete regression coverage for the implemented authentication, authorization, database-isolation, session, provisioning, frontend API, and audit-integrity controls. These tests verify the operational correctness of the implemented security boundaries; they do not represent a mathematical proof of absolute security.
 
 ---
 
@@ -268,7 +268,9 @@ The API starts on `http://127.0.0.1:3000`. Prometheus metrics are exported on `h
 | **Phase 8** | OpenTelemetry Traces, Metrics & Log Redaction | **Complete** |
 | **Phase 9** | HashiCorp Vault Runtime Secrets Integration | **Complete** |
 | **Phase 10** | Security Test Suite (28/28 Passing Tests) | **Complete** |
-| **Phase 11** | System & Security Architecture Documentation | **In Progress** |
+| **Phase 11** | System & Security Architecture Documentation | **Complete** |
+| **Phase 12** | Production Readiness & Workflow Hardening | **Complete** |
+| **Phase 13** | Production Deployment & Container Hardening | **Complete** |
 
 ---
 
@@ -284,9 +286,9 @@ The API starts on `http://127.0.0.1:3000`. Prometheus metrics are exported on `h
 ## Documentation Directory
 
 Detailed architectural and operational documentation is located in:
-* [Architecture Blueprint](ARCHITECTURE.md) — Comprehensive technical design, trust boundaries, and data flows.
-* [Threat Model](THREAT_MODEL.md) — Structured STRIDE/asset threat modeling and mitigation matrix.
-* [Security Policy & Controls](SECURITY.md) — Defense-in-depth principles, redaction policies, and vulnerability reporting.
+* [Architecture Blueprint](docs/ARCHITECTURE.md) — Comprehensive technical design, trust boundaries, and data flows.
+* [Threat Model](docs/THREAT_MODEL.md) — Structured STRIDE/asset threat modeling and mitigation matrix.
+* [Security Policy & Controls](docs/SECURITY.md) — Defense-in-depth principles, redaction policies, and vulnerability reporting.
 * [API Reference](docs/API.md) — Exhaustive REST endpoint contracts, authentication, and error codes.
 * [Audit Chain Specification](docs/AUDIT_CHAIN.md) — Canonicalization algorithm, hashing, and tampering verification.
 * [Deployment Guide](docs/DEPLOYMENT.md) — Environment configuration, container orchestration, and production hardening.
