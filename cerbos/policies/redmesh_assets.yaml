@@ -1,0 +1,75 @@
+apiVersion: "api.cerbos.dev/v1"
+
+resourcePolicy:
+  version: "default"
+  resource: "redmesh:asset"
+
+  rules:
+    # ADMIN can perform all asset operations.
+    - actions: ["*"]
+      effect: EFFECT_ALLOW
+      roles:
+        - ADMIN
+
+    # COMMANDER can view assets and manage provisioning
+    # within the commander's own unit, subject to clearance.
+    - actions:
+        - "asset:view"
+        - "asset:request"
+        - "asset:approve"
+        - "asset:reject"
+        - "asset:provision"
+        - "asset:revoke"
+      effect: EFFECT_ALLOW
+      roles:
+        - COMMANDER
+      condition:
+        match:
+          all:
+            of:
+              - expr: request.principal.attr.unit_id == request.resource.attr.unit_id
+              - expr: request.principal.attr.clearance_level >= request.resource.attr.classification_level
+
+    # AUDITOR can inspect assets in their own unit
+    # when their clearance is sufficient.
+    - actions:
+        - "asset:view"
+      effect: EFFECT_ALLOW
+      roles:
+        - AUDITOR
+      condition:
+        match:
+          all:
+            of:
+              - expr: request.principal.attr.unit_id == request.resource.attr.unit_id
+              - expr: request.principal.attr.clearance_level >= request.resource.attr.classification_level
+
+    # MECHANIC can view/request assets in their own unit
+    # when their clearance is sufficient.
+    - actions:
+        - "asset:view"
+        - "asset:request"
+      effect: EFFECT_ALLOW
+      roles:
+        - MECHANIC
+      condition:
+        match:
+          all:
+            of:
+              - expr: request.principal.attr.unit_id == request.resource.attr.unit_id
+              - expr: request.principal.attr.clearance_level >= request.resource.attr.classification_level
+
+    # CONTRACTOR can view assets in their own unit
+    # when their clearance is sufficient.
+    - actions:
+        - "asset:view"
+        - "asset:request"
+      effect: EFFECT_ALLOW
+      roles:
+        - CONTRACTOR
+      condition:
+        match:
+          all:
+            of:
+              - expr: request.principal.attr.unit_id == request.resource.attr.unit_id
+              - expr: request.principal.attr.clearance_level >= request.resource.attr.classification_level

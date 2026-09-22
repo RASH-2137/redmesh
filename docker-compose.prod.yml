@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: redmesh-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: redmesh
+      POSTGRES_USER: redmesh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - redmesh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redmesh -d redmesh"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redmesh-internal
+
+  cerbos:
+    image: ghcr.io/cerbos/cerbos:0.55.0
+    container_name: redmesh-cerbos-prod
+    restart: always
+    command: ["server", "--policies=/policies"]
+    volumes:
+      - ./cerbos/policies:/policies:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3592/_cerbos/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redmesh-internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: redmesh-backend-prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_BOOTSTRAP_URL: ${DATABASE_BOOTSTRAP_URL}
+      PASETO_SECRET_KEY: ${PASETO_SECRET_KEY}
+      PASETO_PUBLIC_KEY: ${PASETO_PUBLIC_KEY}
+      CERBOS_URL: http://cerbos:3592
+      VAULT_ENABLED: "false"
+      DEMO_ACCOUNT_PASSWORD: ${DEMO_ACCOUNT_PASSWORD}
+      OTEL_METRICS_PORT: 9464
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cerbos:
+        condition: service_healthy
+    networks:
+      - redmesh-internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: redmesh-frontend-prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      BACKEND_API_URL: http://backend:3000
+      NEXT_PUBLIC_DEMO_PASSWORD: ${DEMO_ACCOUNT_PASSWORD}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - redmesh-internal
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: redmesh-caddy-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - redmesh-internal
+
+networks:
+  redmesh-internal:
+    driver: bridge
+
+volumes:
+  redmesh_postgres_data:
+  caddy_data:
+  caddy_config:

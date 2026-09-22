@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.*
+*.txt
+*.mp4
+node_modules
+tests
+scripts
+docs
+frontend
+.system_generated

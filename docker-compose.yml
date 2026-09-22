@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: redmesh-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: redmesh
+      POSTGRES_USER: redmesh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    volumes:
+      - redmesh-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redmesh -d redmesh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  cerbos:
+    image: ghcr.io/cerbos/cerbos:0.55.0
+    container_name: redmesh-cerbos
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:3592:3592"
+
+    volumes:
+      - ./cerbos/policies:/policies:ro
+
+  vault:
+    image: hashicorp/vault:1.20
+    container_name: redmesh-vault
+    restart: unless-stopped
+
+    cap_add:
+      - IPC_LOCK
+
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID}
+
+    command: server -dev -dev-listen-address=0.0.0.0:8200
+
+    ports:
+      - "127.0.0.1:8200:8200"
+
+volumes:
+  redmesh-postgres-data:
