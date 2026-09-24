@@ -73,7 +73,12 @@ async function requireAuthentication(
             userId: payload.sub,
             sessionId: payload.sid,
         };
-    } catch {
+    } catch (error) {
+        request.log.error(
+            { error },
+            "Authentication failed",
+        );
+
         await reply.code(401).send({
             error: "Unauthorized",
         });
