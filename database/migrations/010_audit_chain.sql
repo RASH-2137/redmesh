@@ -199,7 +199,7 @@ BEGIN
 
     v_current_hash :=
         encode(
-            digest(
+            extensions.digest(
                 convert_to(v_canonical, 'UTF8'),
                 'sha256'
             ),
