@@ -48,6 +48,10 @@ async function requireAuthentication(
     const token = getBearerToken(request);
 
     if (!token) {
+        request.log.warn(
+            "Authentication failed: missing bearer token",
+        );
+
         await reply.code(401).send({
             error: "Unauthorized",
         });
@@ -57,17 +61,41 @@ async function requireAuthentication(
     try {
         const payload = await verifyAccessToken(token);
 
+        request.log.info(
+            {
+                userId: payload.sub,
+                sessionId: payload.sid,
+            },
+            "Access token verified",
+        );
+
         const user = await getAuthenticatedUser(
             payload.sub,
             payload.sid,
         );
 
         if (!user) {
+            request.log.warn(
+                {
+                    userId: payload.sub,
+                    sessionId: payload.sid,
+                },
+                "Authentication failed: user lookup returned null",
+            );
+
             await reply.code(401).send({
                 error: "Unauthorized",
             });
             return null;
         }
+
+        request.log.info(
+            {
+                userId: user.id,
+                sessionId: payload.sid,
+            },
+            "Authentication successful",
+        );
 
         return {
             userId: payload.sub,
@@ -76,7 +104,7 @@ async function requireAuthentication(
     } catch (error) {
         request.log.error(
             { error },
-            "Authentication failed",
+            "Authentication failed with exception",
         );
 
         await reply.code(401).send({
