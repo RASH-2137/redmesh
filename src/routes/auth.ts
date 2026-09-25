@@ -203,6 +203,10 @@ export async function authRoutes(
     app.get(
         "/auth/me",
         async (request, reply) => {
+            request.log.warn(
+                "DEBUG AUTH ME ROUTE REACHED",
+            );
+
             const identity = await requireAuthentication(
                 request,
                 reply,
