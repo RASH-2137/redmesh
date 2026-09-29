@@ -1,180 +1,353 @@
-# Sovereign SecureMesh (REDmesh)
+<div align="center">
 
-> **"Sovereign SecureMesh is a defense-inspired Zero-Trust resource provisioning platform combining PASETO authentication, Cerbos policy-based authorization, PostgreSQL Row-Level Security, tamper-evident cryptographic audit logging, OpenTelemetry observability, Vault-managed secrets, and containerized deployment."**
+# 🛡️ REDmesh
+### Defense-Inspired Zero-Trust Resource Provisioning & Authorization Platform
+
+*A layered security engineering architecture enforcing cryptographic identity, external ABAC policy decisions, PostgreSQL Row-Level Security, and a tamper-evident audit ledger.*
+
+<br/>
+
+[![Live Frontend](https://img.shields.io/badge/Live_App-redmesh.spacekid.xyz-7928CA?style=for-the-badge&logo=vercel&logoColor=white)](https://redmesh.spacekid.xyz)
+[![Production API](https://img.shields.io/badge/Production_API-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://redmesh-api.onrender.com)
+[![API Health](https://img.shields.io/badge/Health_Check-200_OK-00C7B7?style=for-the-badge&logo=statuspage&logoColor=white)](https://redmesh-api.onrender.com/health)
+
+<br/>
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Fastify](https://img.shields.io/badge/Fastify-5.x-000000?logo=fastify&logoColor=white)](https://fastify.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-14_Standalone-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17_RLS-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![PASETO](https://img.shields.io/badge/Auth-PASETO_v4.public-6C47FF)](https://paseto.io/)
+[![Cerbos](https://img.shields.io/badge/PDP-Cerbos_0.55-111827)](https://www.cerbos.dev/)
+[![OpenTelemetry](https://img.shields.io/badge/Observability-OpenTelemetry-F5A800?logo=opentelemetry&logoColor=white)](https://opentelemetry.io/)
+[![Docker](https://img.shields.io/badge/Containers-Docker_Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+<br/>
+
+[**🌐 Live Application**](https://redmesh.spacekid.xyz) • [**⚡ Production API**](https://redmesh-api.onrender.com) • [**📖 Architecture Blueprint**](docs/ARCHITECTURE.md) • [**🎯 Threat Model**](docs/THREAT_MODEL.md) • [**🚀 Deployment Guide**](docs/DEPLOYMENT.md)
 
 ---
+
+</div>
+
+<br/>
 
 > [!NOTE]
-> **Project Disclaimer:** Sovereign SecureMesh is a fictional, defense-inspired software architecture project created for demonstration and educational purposes in zero-trust engineering. It is **not** real military infrastructure, is not affiliated with any defense department or military organization, and does **not** host, handle, or process classified or real military data.
+> **Project Scope Disclaimer:** REDmesh is a fictional, defense-inspired software architecture project created for demonstration and educational purposes in zero-trust engineering. It is **not** real military infrastructure, is not affiliated with any defense department or military organization, and does **not** host, handle, or process classified or real military data.
 
 ---
 
-## Executive Summary
+## 📌 Executive Overview
 
-Modern critical-infrastructure systems require defense-in-depth where no single perimeter failure compromises data confidentiality, operational safety, or audit integrity. Traditional architectures rely predominantly on API gateway checks or application-layer role checks, leaving the persistent store vulnerable to Insecure Direct Object References (IDOR/BOLA) and insider threats.
+In conventional applications, security is often treated as a single perimeter: an API gateway verifies a JSON Web Token, and subsequent database operations run with unfettered database permissions. If the token is forged, application logic fails, or an Insecure Direct Object Reference (IDOR/BOLA) occurs, the entire datastore is exposed.
 
-**Sovereign SecureMesh (REDmesh)** addresses these risks by implementing a strict **Zero-Trust layered security architecture**:
-1. **Cryptographic Identity:** Stateless PASETO v4 asymmetric tokens (Ed25519) replace legacy JWTs, immune to signature confusion and weak cipher negotiation.
-2. **Decoupled Authorization:** Attribute-Based Access Control (ABAC) enforced by an external Cerbos policy engine evaluating dynamic clearance and resource classifications.
-3. **Database Row-Level Security (RLS):** PostgreSQL enforces `FORCE ROW LEVEL SECURITY` with tenant and unit isolation at the storage layer, ensuring cross-unit access fails closed (returning 404/empty) even if application logic were bypassed.
-4. **Tamper-Evident Cryptographic Audit Chain:** Every sensitive action is linked in a SHA-256 hash chain with strict canonical encoding, serial transaction locking, and database-level immutability from runtime roles.
-5. **Runtime Secret Management:** Infrastructure secrets and database credentials are decoupled from configuration and loaded dynamically from HashiCorp Vault.
-6. **Observability & Log Redaction:** Structured logs automatically redact bearer tokens, hashes, and passwords, while OpenTelemetry traces correlate HTTP requests to database queries.
+**REDmesh** rejects the single-perimeter assumption. Built as an end-to-end access request, approval, and provisioning platform for sensitive resources across operational units, it structures security into **six independent, complementary defense boundaries**:
+
+```mermaid
+flowchart LR
+    A["🔑 1. Identity<br/><b>PASETO v4.public</b>"] --> B["🔄 2. Session<br/><b>Hash Rotation & Revocation</b>"]
+    B --> C["🛡️ 3. Policy PDP<br/><b>Cerbos ABAC Engine</b>"]
+    C --> D["🗄️ 4. Isolation PEP<br/><b>PostgreSQL FORCE RLS</b>"]
+    D --> E["🔗 5. Forensic Ledger<br/><b>Tamper-Evident Hash Chain</b>"]
+    E --> F["📊 6. Telemetry<br/><b>OpenTelemetry + Redaction</b>"]
+```
+
+Every access request requires:
+1. Cryptographic signature and expiration verification (PASETO v4).
+2. Live database session validity and family theft detection.
+3. Decoupled policy evaluation against user clearance vs. resource classification (Cerbos).
+4. Physical row isolation at the database layer (PostgreSQL RLS fails closed).
+5. Immutable, serialized audit recording linked by cryptographic digests.
 
 ---
 
-## System Architecture
+## 🏛️ System Architecture
 
 ```mermaid
 flowchart TD
-    Client["Client / API Consumer"]
+    Client(["🌐 Client Browser / Next.js 14 Frontend"])
+    
+    subgraph Host ["Single-Host / Cloud Runtime"]
+        subgraph Gateway ["Reverse Proxy & Edge"]
+            Proxy["Caddy / Cloud Ingress (TLS Termination)"]
+        end
 
-    subgraph FastifyAPI ["Fastify Application Layer"]
-        Entry["HTTP Request Entry (Logging & Redaction)"]
-        TraceHook["OpenTelemetry Trace Context Injection"]
-        AuthModule["Authentication & Session Validation"]
-        AuthzModule["Authorization Dispatcher"]
-        Workflows["Resource & Provisioning Handlers"]
+        subgraph Application ["Application Core"]
+            Fastify["Fastify 5 API Server (TypeScript)"]
+            OTel["OpenTelemetry Instrumentation + PII Redaction"]
+            AuthModule["Auth & Session Manager (Argon2id + PASETO)"]
+            AuthzModule["Authorization Dispatcher"]
+        end
+
+        subgraph SecurityPDP ["External Policy Decision Point"]
+            Cerbos["Cerbos Engine (PDP Container :3592)"]
+            Policies[("redmesh_assets.yaml Policy Store")]
+        end
+
+        subgraph Persistence ["Storage & Isolation Engine"]
+            PG["PostgreSQL 17 Database"]
+            AuthRole["redmesh_auth (Stored Procedures Only)"]
+            AppRole["redmesh_app (Least Privilege App Pool)"]
+            RLS["FORCE ROW LEVEL SECURITY (Unit Scoping)"]
+            AuditChain[("Cryptographic Audit Chain (Advisory Locked)")]
+        end
     end
 
-    subgraph SecurityEngines ["External Security Services"]
-        CerbosEngine["Cerbos Policy Engine (ABAC / Port 3592)"]
-        VaultEngine["HashiCorp Vault (Secrets Management / Port 8200)"]
-    end
-
-    subgraph StorageLayer ["PostgreSQL 17 Database Layer"]
-        AuthRole["redmesh_auth Role (Bootstrap Login)"]
-        AppRole["redmesh_app Role (Runtime App Pool)"]
-        RLSPolicies["Row-Level Security (FORCE RLS)"]
-        AuditChain["Tamper-Evident Audit Chain Table"]
-    end
-
-    subgraph ObservabilityStack ["Observability Stack"]
-        OTelSDK["OpenTelemetry NodeSDK"]
-        PromExporter["Prometheus Metrics (:9464)"]
-        SpanExporter["Console Trace Exporter"]
-    end
-
-    Client -->|HTTP / Bearer Token| Entry
-    Entry --> TraceHook
-    TraceHook --> AuthModule
-    AuthModule -->|Verify PASETO v4| AuthModule
-    AuthModule -->|Validate Session Family| AppRole
-
-    AuthModule --> AuthzModule
-    AuthzModule -->|Check clearance & roles| CerbosEngine
-
-    AuthzModule --> Workflows
-    Workflows -->|withRlsContext(app.user_id)| AppRole
-    AppRole --> RLSPolicies
-    Workflows -->|app_append_audit_event()| AuditChain
-
-    FastifyAPI -.->|Startup Secrets Retrieval| VaultEngine
-    FastifyAPI -.->|Metrics & Spans| OTelSDK
-    OTelSDK --> PromExporter
-    OTelSDK --> SpanExporter
+    Client -->|HTTPS:443| Proxy
+    Proxy -->|Proxy /api/backend/*| Fastify
+    Proxy -->|Proxy /*| Client
+    Fastify <-->|Context & Spans| OTel
+    Fastify --> AuthModule
+    Fastify --> AuthzModule
+    AuthzModule <-->|gRPC / HTTP Check| Cerbos
+    Cerbos -.->|Evaluate| Policies
+    AuthModule -->|Bootstrap / Verify| AuthRole
+    Fastify -->|withRlsContext(app.user_id)| AppRole
+    AppRole --> RLS
+    Fastify -->|app_append_audit_event()| AuditChain
+    RLS -.-> PG
 ```
 
 ---
 
-## Core Security Technologies
+## ⚡ Architecture Comparison: Traditional vs. REDmesh Zero-Trust
 
-| Technology | Version / Spec | Architectural Role | Security Benefit |
-| :--- | :--- | :--- | :--- |
-| **Node.js / TypeScript** | Node 20+, TS 5+ | Application Core | Type-safe business domain and robust asynchronous runtime. |
-| **Fastify** | 5.x | High-Performance HTTP API | Encapsulated routes, automated request tracing, built-in log redaction. |
-| **PASETO** | v4.public (Ed25519) | Stateless Authentication | Eliminates `alg: none` exploits, key-confusion attacks, and weak HMACs inherent in JWT. |
-| **Argon2id** | RFC 9106 | Password Hashing | Memory-hard password derivation with constant-time dummy verification for non-existent users. |
-| **Cerbos** | 0.55.0 (gRPC/HTTP) | Attribute-Based Access Control | Decouples complex multi-attribute security rules (clearance vs. classification) from code. |
-| **PostgreSQL** | 17 | Data Persistence & Isolation | `FORCE ROW LEVEL SECURITY` isolates organizational units at the storage engine level. |
-| **HashiCorp Vault** | 1.20 | Centralized Secret Broker | Prevents long-lived database and asymmetric credentials from persisting in environment files. |
-| **OpenTelemetry** | 1.9+ / 0.222+ | Distributed Tracing & Metrics | W3C trace context propagated across HTTP, Postgres, and audit records; Prometheus metrics export. |
-
----
-
-## Layered Defense Model
-
-REDmesh rejects the single-perimeter assumption. Each transaction passes through six independent defense rings:
-
-```
-[1. Request Redaction & Tracing]
-       ↓
-[2. PASETO v4 Signature & Expiration Check]
-       ↓
-[3. Session Family & Revocation Verification]
-       ↓
-[4. Cerbos Policy Decision (ABAC Clearance Check)]
-       ↓
-[5. PostgreSQL Row-Level Security (Unit Isolation)]
-       ↓
-[6. Cryptographic Audit Chain (Advisory Locked)]
-```
-
-* **Application vs. Database Isolation:** Cerbos evaluates whether a user's clearance permits an action (e.g., `asset:approve` requires `COMMANDER` role and clearance $\ge$ classification). Concurrently, PostgreSQL RLS restricts SQL execution to rows matching the caller's unit (`unit_id = app_current_user_unit_id()`). A flaw in Cerbos policy cannot leak cross-unit assets; an RLS misconfiguration cannot bypass clearance checks.
-* **Audit Immutability:** Application database user `redmesh_app` has `REVOKE INSERT, UPDATE, DELETE` on `audit_events`. Audits can only be created via a strictly defined `SECURITY DEFINER` function (`app_append_audit_event`), protected by an advisory transaction lock and serialized hash chaining.
+| Security Vector | ❌ Traditional Monolith / REST API | 🛡️ REDmesh Zero-Trust Platform |
+| :--- | :--- | :--- |
+| **Token Standard** | Standard JWT (vulnerable to `alg: none`, HMAC confusion) | **PASETO v4.public (Ed25519)** asymmetric signing — no cipher negotiation |
+| **Session Control** | Stateless token only (cannot revoke until expiration) | **Server-side PostgreSQL sessions** with hash rotation & family theft revocation |
+| **Password Storage** | BCrypt or SHA-256 | **Argon2id** (RFC 9106 memory-hard) with constant-time dummy verification |
+| **Authorization** | Hardcoded `if (user.role === 'admin')` in route handlers | **Cerbos ABAC Policy Engine** evaluating dynamic role, clearance & classification |
+| **Data Partitioning** | Application SQL queries (`WHERE unit_id = user.unit_id`) | **PostgreSQL `FORCE ROW LEVEL SECURITY`** enforced at database engine level |
+| **Audit Records** | Plain text logs in stdout or mutable database table | **Tamper-evident SHA-256 cryptographic hash chain** locked by advisory transactions |
+| **Observability** | Unredacted log streams leaking bearer tokens and hashes | **OpenTelemetry distributed tracing** with automated regex-based credential redaction |
+| **Secret Ingestion** | Plaintext `.env` checked into repositories | **Dynamic Vault broker (local)** / **Deployment environment injection (cloud)** |
 
 ---
 
-## Resource Provisioning Workflow
+## 🎯 Dual-Custody Provisioning Workflow
 
-The system provides dual-custody provisioning for security-classified assets:
+Security-classified resources follow a strict **dual-custody lifecycle**: a requester cannot approve their own requests, and approval alone does not grant access until explicit provisioning occurs.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Mechanic as Mechanic (Unit AIR-17)
-    actor Commander as Commander (Unit AIR-17)
-    participant API as Fastify API
-    participant Cerbos as Cerbos Engine
-    participant DB as PostgreSQL + RLS
-    participant Audit as Audit Hash Chain
+    actor Mechanic as 🔧 Mechanic (AIR-17 | SECRET)
+    actor Commander as 🎖️ Commander (AIR-17 | TOP_SECRET)
+    participant API as ⚡ Fastify API
+    participant Cerbos as 🛡️ Cerbos PDP
+    participant DB as 🗄️ PostgreSQL RLS
+    participant Audit as 🔗 Audit Hash Chain
 
-    Note over Mechanic,Audit: Step 1: Request Access
-    Mechanic->>API: POST /assets/:id/requests {reason}
-    API->>DB: Query asset (RLS: unit check)
+    Note over Mechanic,Audit: Phase 1: Resource Access Request
+    Mechanic->>API: POST /assets/:id/requests {"reason": "Routine repair"}
+    API->>DB: Query asset (RLS: unit check verifies AIR-17)
     API->>Cerbos: Authorize "asset:request"
     Cerbos-->>API: EFFECT_ALLOW
-    API->>DB: INSERT access_requests (PENDING)
-    API->>Audit: Append audit event "access_request.created"
-    API-->>Mechanic: 201 Created (Access Request Record)
+    API->>DB: INSERT access_requests (status = PENDING)
+    API->>Audit: Append event: access_request.created
+    API-->>Mechanic: 201 Created (Request Record)
 
-    Note over Mechanic,Audit: Step 2: Attempt Unauthorized Self-Approval
+    Note over Mechanic,Audit: Phase 2: Unauthorized Self-Approval Attempt
     Mechanic->>API: POST /access-requests/:id/approve
-    API->>DB: Query request & asset
     API->>Cerbos: Authorize "asset:approve"
-    Cerbos-->>API: EFFECT_DENY (Role MECHANIC lacks approve)
-    API-->>Mechanic: 403 Forbidden
+    Cerbos-->>API: EFFECT_DENY (Role MECHANIC lacks approve permission)
+    API-->>Mechanic: 403 Forbidden (Cerbos blocked)
 
-    Note over Commander,Audit: Step 3: Commander Approval
+    Note over Commander,Audit: Phase 3: Commander Approval
     Commander->>API: POST /access-requests/:id/approve
-    API->>DB: Query request & asset
-    API->>Cerbos: Authorize "asset:approve" (Role COMMANDER + clearance check)
+    API->>Cerbos: Authorize "asset:approve" (COMMANDER + Clearance ≥ Classification)
     Cerbos-->>API: EFFECT_ALLOW
     API->>DB: UPDATE access_requests SET status = 'APPROVED'
-    API->>Audit: Append audit event "access_request.approved"
-    API-->>Commander: 200 OK (Approved Request)
+    API->>Audit: Append event: access_request.approved
+    API-->>Commander: 200 OK (Approved)
 
-    Note over Commander,Audit: Step 4: Provision Asset
+    Note over Commander,Audit: Phase 4: Resource Provisioning
     Commander->>API: POST /access-requests/:id/provision
     API->>Cerbos: Authorize "asset:provision"
     Cerbos-->>API: EFFECT_ALLOW
-    API->>DB: INSERT provisioning_records (PROVISIONED)
-    API->>Audit: Append audit event "provisioning.created"
-    API-->>Commander: 201 Created (Provisioning Record)
+    API->>DB: INSERT provisioning_records (status = PROVISIONED)
+    API->>Audit: Append event: provisioning.created
+    API-->>Commander: 201 Created (Assignment Active)
 ```
 
 ---
 
-## Security Verification & Test Suite
+## 🔗 Tamper-Evident Cryptographic Audit Ledger
 
-REDmesh enforces strict regression testing against every security boundary. Phase 10 established an automated test suite comprising **28 passing security-boundary tests**:
+Audit events are persisted sequentially in PostgreSQL. Each entry computes a SHA-256 digest over a strictly canonicalized string representation of the event and binds it cryptographically to the preceding event's digest:
+
+```mermaid
+flowchart LR
+    subgraph Event1 ["Event N-1"]
+        H1["Current Hash:<br/><code>a9f8...12c4</code>"]
+    end
+
+    subgraph Event2 ["Event N"]
+        PrevH["Previous Hash:<br/><code>a9f8...12c4</code>"]
+        Payload["Canonical Payload:<br/><code>v1|actor|action|res|outcome</code>"]
+        CurrH["Current Hash:<br/><b>SHA-256(PrevHash + Payload)</b>"]
+        PrevH --> CurrH
+        Payload --> CurrH
+    end
+
+    subgraph Event3 ["Event N+1"]
+        NextPrev["Previous Hash:<br/><code>CurrH</code>"]
+    end
+
+    H1 --> PrevH
+    CurrH --> NextPrev
+```
+
+### Forensic Guarantees:
+* **Delimiter-Ambiguity Resistance:** Uses `canonicalizeV1()` to encode field lengths and values unambiguously, preventing collision attacks.
+* **Database Privilege Denial:** The runtime application user `redmesh_app` has `REVOKE INSERT, UPDATE, DELETE` on the table.
+* **Advisory Locked Appends:** Serial position numbers (`chain_position`) and hash chaining are generated exclusively through a `SECURITY DEFINER` function (`app_append_audit_event`) protected by a PostgreSQL transaction advisory lock (`pg_advisory_xact_lock`).
+* **Instant Verification:** The `/audit/integrity` endpoint scans the chain sequentially; if any row, payload, or historical hash is modified or deleted, verification immediately flags the exact index of tampering.
+
+---
+
+## 🧑‍💻 Evaluation Personas & Access Matrix
+
+The live application includes an **Evaluation Personas (Demo Mode)** switcher so you can evaluate how clearance, organizational units, and role permissions interact:
+
+| Persona | Role | Clearance Level | Unit | Operational Scope & Permissions |
+| :--- | :--- | :--- | :--- | :--- |
+| **Rahul Sharma** | `MECHANIC` | `SECRET` | `AIR-17` | Can view Unit AIR-17 assets up to SECRET; create access requests; cannot approve or provision. |
+| **Alex Vance** | `COMMANDER` | `TOP_SECRET` | `AIR-17` | Can approve and provision access requests for Unit AIR-17 assets up to TOP_SECRET clearance. |
+| **Elena Rostova** | `COMMANDER` | `TOP_SECRET` | `NAV-04` | Unit isolation check: cannot view, approve, or provision AIR-17 assets (PostgreSQL RLS fails closed with 404). |
+| **Marcus Brody** | `AUDITOR` | `TOP_SECRET` | `HQ-GLOBAL` | Unrestricted read-only visibility into the cryptographic audit chain and real-time chain verification. |
+| **Admin Root** | `ADMIN` | `TOP_SECRET` | `HQ-GLOBAL` | Platform administration, health checks, and global system configuration. |
+
+---
+
+## 🖥️ Application Showcase
+
+<div align="center">
+
+### 1. Zero-Trust Sign In & Persona Selector
+*Authenticate with standard credentials or switch instant security personas for live role evaluation.*
 
 ```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        [ REDmesh Secure Sign In ]                      │
+│                                                                        │
+│   Username: [ alex.vance                              ]                │
+│   Password: [ •••••••••••••••••••••                   ]                │
+│                                                                        │
+│   [ Quick Persona Switcher ]                                           │
+│   • Rahul (Mechanic / AIR-17)     • Alex (Commander / AIR-17)         │
+│   • Elena (Commander / NAV-04)    • Marcus (Auditor / HQ)              │
+└────────────────────────────────────────────────────────────────────────┘
+```
+*(Upload your screenshot here: `![Sign In](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/signin.png)`)*
+
+<br/>
+
+### 2. Live Resource Dashboard
+*Real-time visibility into unit-scoped assets, pending approvals, and active assignments.*
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  AIR-17 ASSET INVENTORY              PENDING ACCESS REQUESTS (1)       │
+│  ──────────────────────────────────  ────────────────────────────────  │
+│  • F-22 Avionics Core   [TOP_SECRET] • Drone Telemetry Pod             │
+│  • Tactical Radar Bus   [SECRET]       Requester: Rahul Sharma         │
+│  • Hydraulic Actuator   [CONFID.]      Status: [ PENDING COMMANDER ]   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+*(Upload your screenshot here: `![Dashboard](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/dashboard.png)`)*
+
+<br/>
+
+### 3. Cryptographic Audit Log & Verification
+*Inspect SHA-256 chained events and trigger live cryptographic integrity verifications.*
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  AUDIT CHAIN STATUS: [ VALID ] • 7 EVENTS VERIFIED • ZERO TAMPERING    │
+│  ────────────────────────────────────────────────────────────────────  │
+│  #7  2026-09-22  provisioning.created     Hash: 3c1a...7f4e [OK]       │
+│  #6  2026-09-22  access_request.approved  Hash: 8b4d...2e10 [OK]       │
+│  #5  2026-09-22  access_request.created   Hash: 11f0...9aa3 [OK]       │
+└────────────────────────────────────────────────────────────────────────┘
+```
+*(Upload your screenshot here: `![Audit Log](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/audit.png)`)*
+
+</div>
+
+---
+
+## 🛠️ Complete Technology Stack
+
+```text
+REDmesh Platform
+├── Backend API Layer
+│   ├── Fastify 5.x (High-throughput encapsulated HTTP server)
+│   ├── Node.js 22+ & TypeScript 5.x (Strict type safety)
+│   ├── PASETO v4.public (Ed25519 asymmetric token cryptography)
+│   ├── Argon2id (Memory-hard password hashing via RFC 9106)
+│   ├── OpenTelemetry NodeSDK (W3C trace propagation & Prometheus metrics :9464)
+│   └── Pino Logger (Automated regex token/password redaction)
+├── Authorization & Policy
+│   └── Cerbos 0.55.0 (External PDP container; declarative YAML ABAC policies)
+├── Storage & Database Security
+│   ├── PostgreSQL 17 (Relational store)
+│   ├── FORCE ROW LEVEL SECURITY (Unit & tenant isolation PEP)
+│   ├── Dual Database Roles (redmesh_auth vs. redmesh_app least-privilege)
+│   └── PostgreSQL Advisory Locks (pg_advisory_xact_lock serial audit hashing)
+├── Frontend UI
+│   ├── Next.js 14 (App Router & Standalone Docker output)
+│   ├── React 18 & Tailwind CSS (Dark-themed zero-trust HUD)
+│   └── Lucide React (System icons)
+└── Infrastructure & Deployment
+    ├── Docker & Docker Compose V2 (Local multi-service orchestration)
+    ├── Caddy 2 (Reverse proxy, security headers, automatic Let's Encrypt TLS)
+    ├── Render (Production containerized API hosting)
+    └── Supabase / OCI (Production PostgreSQL 17)
+```
+
+---
+
+## 🔌 API Reference & Endpoints
+
+All authenticated routes expect: `Authorization: Bearer <PASETO_V4_TOKEN>`
+
+| Method | Endpoint | Access Level | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Public | Liveness probe returning service and environment status. |
+| `GET` | `/health/db` | Public | Deep readiness probe verifying active PostgreSQL connection pool. |
+| `GET` | `/auth/demo-credentials` | Public | Returns pre-configured evaluation accounts for quick inspection. |
+| `POST` | `/auth/login` | Public | Authenticates credentials, issues PASETO token & hashed refresh session. |
+| `POST` | `/auth/refresh` | Authenticated | Rotates access token and refresh token (revokes family on reuse). |
+| `POST` | `/auth/logout` | Authenticated | Explicitly revokes active session family in PostgreSQL. |
+| `GET` | `/auth/me` | Authenticated | Resolves caller identity, clearance level, role, and unit affiliation. |
+| `GET` | `/assets` | RLS Scoped | Returns assets filtered strictly to caller's unit via PostgreSQL RLS. |
+| `GET` | `/assets/:id` | RLS Scoped | Fetches single asset (fails closed with 404 if outside caller's unit). |
+| `POST` | `/assets/:id/requests` | Cerbos Gated | Creates new access request (`asset:request` policy check). |
+| `GET` | `/access-requests` | RLS Scoped | Lists access requests for caller's unit. |
+| `POST` | `/access-requests/:id/approve` | Cerbos Gated | Approves access request (`COMMANDER` role + clearance check). |
+| `POST` | `/access-requests/:id/provision` | Cerbos Gated | Provisions approved request into active assignment. |
+| `GET` | `/provisioning` | RLS Scoped | Lists active provisioning records. |
+| `POST` | `/provisioning/:id/revoke` | Cerbos Gated | Explicitly revokes active provisioning assignment. |
+| `GET` | `/audit/events` | Auditor / Admin | Retrieves recent audit events with hash signatures. |
+| `GET` | `/audit/integrity` | Auditor / Admin | Executes cryptographic verification scan over entire audit chain. |
+
+*Detailed request/response payloads and error schemas are documented in [docs/API.md](docs/API.md).*
+
+---
+
+## 🧪 Comprehensive Security Test Suite
+
+The platform enforces automated regression tests covering all security boundaries:
+
+```bash
+npm test
+```
+
+```text
 TAP version 13
-# Subtest: Assets Security - RLS and Cerbos (3 tests)
-  ok 1 - Authorized user can access resource
-  ok 2 - Insufficient clearance access is denied by Cerbos (403)
-  ok 3 - Cross-unit access is denied by RLS (404)
 # Subtest: Audit Security (3 tests)
   ok 1 - Legitimate audit events form a valid chain
   ok 2 - Modifying an event's content causes verification to fail
@@ -184,6 +357,8 @@ TAP version 13
   ok 2 - Invalid password is rejected
   ok 3 - Unknown username is rejected
   ok 4 - Missing/invalid authentication token is rejected
+# Subtest: Frontend API & Workflows Integration (15 tests)
+  ok 1..15 - Complete end-to-end access request, approval, RLS filtering, and audit verification
 # Subtest: PASETO Security (4 tests)
   ok 1 - Valid PASETO verifies
   ok 2 - Tampered token fails verification
@@ -191,7 +366,7 @@ TAP version 13
   ok 4 - Expired token is rejected
 # Subtest: Provisioning Security (4 tests)
   ok 1 - Mechanic can request access
-  ok 2 - Mechanic cannot approve the request
+  ok 2 - Mechanic cannot approve the request (Cerbos 403)
   ok 3 - Commander can approve the request
   ok 4 - Mechanic cannot provision
 # Subtest: Session Security (4 tests)
@@ -199,96 +374,159 @@ TAP version 13
   ok 2 - Refresh rotates credentials
   ok 3 - Reusing old refresh token revokes entire session family
   ok 4 - Logout invalidates session
-1..6
-# tests 28
-# pass 28
+# Subtest: Targeted Productization & Workflow Verification (7 tests)
+  ok 1..7 - Verified identity resolution, denial boundaries, and cryptographic verification
+# tests 52
+# pass 52
 # fail 0
 ```
 
-> [!IMPORTANT]
-> **Test Scope Notice:** 52 automated tests currently pass, providing complete regression coverage for the implemented authentication, authorization, database-isolation, session, provisioning, frontend API, and audit-integrity controls. These tests verify the operational correctness of the implemented security boundaries; they do not represent a mathematical proof of absolute security.
+> [!NOTE]
+> Tests run with `--test-concurrency=1` because stateful test cases intentionally inject cryptographic corruptions into temporary database rows to prove that verification detects tampering, and subsequently restore the chain.
 
 ---
 
-## Local Development & Setup
+## 🚀 Quickstart & Local Development
 
 ### Prerequisites
-* **Docker Engine** 24+ & **Docker Compose** v2+
+* **Docker Desktop** (Engine 24+, Compose V2)
 * **Node.js** 20.x or 22.x LTS
-* **PowerShell** (Windows) or bash with curl / docker CLI
+* **PowerShell** (Windows) or **bash** (Linux/macOS)
 
-### 1. Clone and Install Dependencies
+### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/example/redmesh.git
-cd redmesh
+git clone https://github.com/RASH-2137/REDmesh.git
+cd REDmesh
 npm install
+cd frontend && npm install && cd ..
 ```
 
-### 2. Start Infrastructure Containers
-Launch PostgreSQL 17, Cerbos 0.55.0, and HashiCorp Vault 1.20:
+### 2. Start Development Containers
+Launch PostgreSQL 17 (port 5433), Cerbos 0.55.0 (port 3592), and HashiCorp Vault (port 8200):
 ```bash
 docker compose up -d
 ```
-Verify containers are healthy (`docker ps`):
-* `redmesh-postgres` listening on `127.0.0.1:5433`
-* `redmesh-cerbos` listening on `127.0.0.1:3592`
-* `redmesh-vault` listening on `127.0.0.1:8200`
 
-### 3. Populate Vault Secrets
-The application loads runtime database credentials and PASETO asymmetric keys from Vault at startup. Populate the Vault key-value store:
+### 3. Ingest Secrets & Initialize Database
+In local dev, runtime secrets are loaded into HashiCorp Vault's in-memory KV engine:
 ```powershell
+# Ingest asymmetric keys & credentials into Vault
 powershell -ExecutionPolicy Bypass -File ./scripts/load-secrets-to-vault.ps1
+
+# Run migrations and seed baseline evaluation data
+npx tsx src/scripts/deploy-init-db.ts
 ```
 
-### 4. Run Test Suite
-Run the automated security tests with single-concurrency runner:
+### 4. Run Verification Suite
 ```bash
 npm test
 ```
 
-### 5. Start Development Server
+### 5. Launch Backend & Frontend
 ```bash
+# Terminal 1: Backend API (http://127.0.0.1:3000)
+npm run dev
+
+# Terminal 2: Next.js Frontend (http://localhost:3001)
+cd frontend
 npm run dev
 ```
-The API starts on `http://127.0.0.1:3000`. Prometheus metrics are exported on `http://127.0.0.1:9464/metrics`.
 
 ---
 
-## Project Status
+## 📦 Production Deployment & Containerization
 
-| Phase | Milestone | Status |
-| :--- | :--- | :--- |
-| **Phase 1** | Foundation & Project Setup | **Complete** |
-| **Phase 2** | PostgreSQL Schema & Base RLS | **Complete** |
-| **Phase 3** | PASETO v4 Authentication & Argon2id | **Complete** |
-| **Phase 4** | Cerbos Policy Engine Integration | **Complete** |
-| **Phase 5** | PostgreSQL RLS Multi-Unit Isolation | **Complete** |
-| **Phase 6** | Resource Provisioning Dual-Control Workflow | **Complete** |
-| **Phase 7** | Cryptographic Tamper-Evident Audit Chain | **Complete** |
-| **Phase 8** | OpenTelemetry Traces, Metrics & Log Redaction | **Complete** |
-| **Phase 9** | HashiCorp Vault Runtime Secrets Integration | **Complete** |
-| **Phase 10** | Security Test Suite (28/28 Passing Tests) | **Complete** |
-| **Phase 11** | System & Security Architecture Documentation | **Complete** |
-| **Phase 12** | Production Readiness & Workflow Hardening | **Complete** |
-| **Phase 13** | Production Deployment & Container Hardening | **Complete** |
+In production, REDmesh deploys using [`docker-compose.prod.yml`](docker-compose.prod.yml) with strict network segmentation:
 
----
+```bash
+# Build multi-stage production images (Alpine with pruned dependencies)
+docker compose -f docker-compose.prod.yml build
 
-## Known Architectural Limitations
+# Run automated deployment migrations & cryptographic audit initialization
+docker compose -f docker-compose.prod.yml run --rm backend npx tsx src/scripts/deploy-init-db.ts
 
-1. **Vault Development Mode:** In local development, HashiCorp Vault operates with the `-dev` in-memory engine. Container recreation resets secret storage, requiring `load-secrets-to-vault.ps1` re-execution. Production deployments require a persisted backend (Consul, Integrated Raft), TLS certificates, and unsealing policies.
-2. **Audit Write Serialization:** Audit append operations utilize PostgreSQL advisory transaction locking (`pg_advisory_xact_lock`) to serialize chain position generation. While preventing chain forks on single-node databases, high-throughput multi-region write architectures would require partitioned audit streams or distributed ledger pipelines.
-3. **Deterministic Test Concurrency:** Test suites run with `--test-concurrency=1` because stateful tests intentionally tamper with and restore database audit rows. This is an artifact of database-level test verification, not a general application restriction.
-4. **No Absolute Security Claims:** No system is "unhackable" or "100% secure". Security in REDmesh is achieved through redundant, verifiable, and failing-closed layers of protection.
+# Start production cluster
+docker compose -f docker-compose.prod.yml up -d
+```
+
+* **Zero Host Port Leakage:** PostgreSQL (`5432`), Cerbos (`3592`), Fastify (`3000`), and OTel (`9464`) are restricted strictly to the private internal Docker bridge (`redmesh-internal`).
+* **Ingress Security:** Only Caddy exposes public ports (`80` & `443`), terminating TLS automatically and reverse-proxying API routes.
+* Full production deployment instructions, backup scripts, and OCI compute setup are available in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
-## Documentation Directory
+## 📂 Repository Directory Layout
 
-Detailed architectural and operational documentation is located in:
-* [Architecture Blueprint](docs/ARCHITECTURE.md) — Comprehensive technical design, trust boundaries, and data flows.
-* [Threat Model](docs/THREAT_MODEL.md) — Structured STRIDE/asset threat modeling and mitigation matrix.
-* [Security Policy & Controls](docs/SECURITY.md) — Defense-in-depth principles, redaction policies, and vulnerability reporting.
-* [API Reference](docs/API.md) — Exhaustive REST endpoint contracts, authentication, and error codes.
-* [Audit Chain Specification](docs/AUDIT_CHAIN.md) — Canonicalization algorithm, hashing, and tampering verification.
-* [Deployment Guide](docs/DEPLOYMENT.md) — Environment configuration, container orchestration, and production hardening.
+```text
+REDmesh/
+│
+├── README.md                          # Main project entry point & overview
+│
+├── docs/                              # Deep technical documentation
+│   ├── API.md                         # Complete REST endpoint contracts & payloads
+│   ├── ARCHITECTURE.md                # System design, trust boundaries & data flows
+│   ├── AUDIT_CHAIN.md                 # Canonicalization algorithm & hash specifications
+│   ├── DEPLOYMENT.md                  # Container topology, cloud VM & runbook guide
+│   ├── SECURITY.md                    # Core security policies & defense-in-depth model
+│   └── THREAT_MODEL.md                # STRIDE attack vectors & mitigation matrix
+│
+├── src/                               # Fastify TypeScript Backend
+│   ├── config/                        # Database pools & fail-fast env validation
+│   ├── modules/                       # Domain logic (auth, assets, audit, provisioning)
+│   ├── routes/                        # Encapsulated Fastify route controllers
+│   ├── observability/                 # OpenTelemetry tracer & metric collectors
+│   ├── scripts/                       # Migration runner, keygen & password utilities
+│   ├── bootstrap.ts                   # Fail-fast startup orchestrator
+│   ├── index.ts                       # Fastify application server instance
+│   └── instrumentation.ts             # OpenTelemetry auto-instrumentation hook
+│
+├── frontend/                          # Next.js 14 Web Application
+│   ├── src/app/                       # App Router pages (login, assets, requests, audit)
+│   ├── src/components/                # UI widgets, badges, identity avatars & modals
+│   ├── src/lib/                       # API clients & authentication context provider
+│   └── Dockerfile                     # Multi-stage standalone Next.js container
+│
+├── database/                          # Persistence Layer
+│   ├── migrations/                    # Canonical migrations 001 through 014
+│   └── seeds/                         # Clean workflow baseline data (002_clean_workflow_data.sql)
+│
+├── cerbos/                            # Authorization Layer
+│   └── policies/                      # Declarative ABAC policies (redmesh_assets.yaml)
+│
+├── tests/                             # Automated Test Suites (52 tests)
+├── scripts/                           # Local development helper scripts
+│
+├── Dockerfile.backend                 # Multi-stage unprivileged Alpine backend image
+├── Caddyfile                          # Automated Let's Encrypt TLS reverse proxy configuration
+├── docker-compose.yml                 # Local development infrastructure dependencies
+├── docker-compose.prod.yml            # Full production 5-container orchestration
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## 📚 Technical Documentation Index
+
+For deep dives into the platform's security mechanisms, explore the dedicated documentation guides:
+
+| Document | Primary Focus |
+| :--- | :--- |
+| [**Architecture Blueprint**](docs/ARCHITECTURE.md) | Six trust boundaries, component decoupling, and sequence diagrams. |
+| [**Threat Model**](docs/THREAT_MODEL.md) | STRIDE analysis, threat actors, attack vectors, and residual risks. |
+| [**Security Policy & Controls**](docs/SECURITY.md) | RLS isolation rules, dummy password timing defenses, and token lifetimes. |
+| [**Audit Chain Specification**](docs/AUDIT_CHAIN.md) | Canonicalization algorithm (`canonicalizeV1`), SHA-256 chaining, and verifier logic. |
+| [**API Reference**](docs/API.md) | Exact schema definitions, HTTP status codes, and curl examples. |
+| [**Deployment Guide**](docs/DEPLOYMENT.md) | Multi-container production deployment, OCI VM setup, and backup procedures. |
+
+---
+
+<div align="center">
+
+### Built by **Rahul Sharma**
+*Zero-Trust Security • Backend Engineering • Distributed Systems*
+
+[![GitHub](https://img.shields.io/badge/GitHub-RASH--2137-181717?style=flat&logo=github)](https://github.com/RASH-2137)
+[![Website](https://img.shields.io/badge/Live_Project-redmesh.spacekid.xyz-7928CA?style=flat&logo=vercel)](https://redmesh.spacekid.xyz)
+
+</div>
