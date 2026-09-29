@@ -46,11 +46,11 @@ In conventional applications, security is often treated as a single perimeter: a
 
 ```mermaid
 flowchart LR
-    A["🔑 1. Identity<br/><b>PASETO v4.public</b>"] --> B["🔄 2. Session<br/><b>Hash Rotation & Revocation</b>"]
-    B --> C["🛡️ 3. Policy PDP<br/><b>Cerbos ABAC Engine</b>"]
-    C --> D["🗄️ 4. Isolation PEP<br/><b>PostgreSQL FORCE RLS</b>"]
-    D --> E["🔗 5. Forensic Ledger<br/><b>Tamper-Evident Hash Chain</b>"]
-    E --> F["📊 6. Telemetry<br/><b>OpenTelemetry + Redaction</b>"]
+    A["🔑 1. Identity<br/>PASETO v4.public"] --> B["🔄 2. Session<br/>Hash Rotation and Revocation"]
+    B --> C["🛡️ 3. Policy PDP<br/>Cerbos ABAC Engine"]
+    C --> D["🗄️ 4. Isolation PEP<br/>PostgreSQL FORCE RLS"]
+    D --> E["🔗 5. Forensic Ledger<br/>Tamper-Evident Hash Chain"]
+    E --> F["📊 6. Telemetry<br/>OpenTelemetry and Redaction"]
 ```
 
 Every access request requires:
@@ -97,15 +97,15 @@ flowchart TD
     Client -->|HTTPS:443| Proxy
     Proxy -->|Proxy /api/backend/*| Fastify
     Proxy -->|Proxy /*| Client
-    Fastify <-->|Context & Spans| OTel
+    Fastify <-->|Context and Spans| OTel
     Fastify --> AuthModule
     Fastify --> AuthzModule
     AuthzModule <-->|gRPC / HTTP Check| Cerbos
     Cerbos -.->|Evaluate| Policies
-    AuthModule -->|Bootstrap / Verify| AuthRole
-    Fastify -->|withRlsContext(app.user_id)| AppRole
+    AuthModule -->|Bootstrap and Verify| AuthRole
+    Fastify -->|Set app.user_id context| AppRole
     AppRole --> RLS
-    Fastify -->|app_append_audit_event()| AuditChain
+    Fastify -->|Append audit event| AuditChain
     RLS -.-> PG
 ```
 
@@ -133,17 +133,17 @@ Security-classified resources follow a strict **dual-custody lifecycle**: a requ
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Mechanic as 🔧 Mechanic (AIR-17 | SECRET)
-    actor Commander as 🎖️ Commander (AIR-17 | TOP_SECRET)
+    actor Mechanic as 🔧 Mechanic (AIR-17 - SECRET)
+    actor Commander as 🎖️ Commander (AIR-17 - TOP_SECRET)
     participant API as ⚡ Fastify API
     participant Cerbos as 🛡️ Cerbos PDP
     participant DB as 🗄️ PostgreSQL RLS
     participant Audit as 🔗 Audit Hash Chain
 
     Note over Mechanic,Audit: Phase 1: Resource Access Request
-    Mechanic->>API: POST /assets/:id/requests {"reason": "Routine repair"}
+    Mechanic->>API: POST /assets/:id/requests (reason: Routine repair)
     API->>DB: Query asset (RLS: unit check verifies AIR-17)
-    API->>Cerbos: Authorize "asset:request"
+    API->>Cerbos: Authorize asset:request
     Cerbos-->>API: EFFECT_ALLOW
     API->>DB: INSERT access_requests (status = PENDING)
     API->>Audit: Append event: access_request.created
@@ -151,13 +151,13 @@ sequenceDiagram
 
     Note over Mechanic,Audit: Phase 2: Unauthorized Self-Approval Attempt
     Mechanic->>API: POST /access-requests/:id/approve
-    API->>Cerbos: Authorize "asset:approve"
+    API->>Cerbos: Authorize asset:approve
     Cerbos-->>API: EFFECT_DENY (Role MECHANIC lacks approve permission)
     API-->>Mechanic: 403 Forbidden (Cerbos blocked)
 
     Note over Commander,Audit: Phase 3: Commander Approval
     Commander->>API: POST /access-requests/:id/approve
-    API->>Cerbos: Authorize "asset:approve" (COMMANDER + Clearance ≥ Classification)
+    API->>Cerbos: Authorize asset:approve (COMMANDER + Clearance >= Classification)
     Cerbos-->>API: EFFECT_ALLOW
     API->>DB: UPDATE access_requests SET status = 'APPROVED'
     API->>Audit: Append event: access_request.approved
@@ -165,7 +165,7 @@ sequenceDiagram
 
     Note over Commander,Audit: Phase 4: Resource Provisioning
     Commander->>API: POST /access-requests/:id/provision
-    API->>Cerbos: Authorize "asset:provision"
+    API->>Cerbos: Authorize asset:provision
     Cerbos-->>API: EFFECT_ALLOW
     API->>DB: INSERT provisioning_records (status = PROVISIONED)
     API->>Audit: Append event: provisioning.created
@@ -181,19 +181,19 @@ Audit events are persisted sequentially in PostgreSQL. Each entry computes a SHA
 ```mermaid
 flowchart LR
     subgraph Event1 ["Event N-1"]
-        H1["Current Hash:<br/><code>a9f8...12c4</code>"]
+        H1["Current Hash:<br/>a9f8...12c4"]
     end
 
     subgraph Event2 ["Event N"]
-        PrevH["Previous Hash:<br/><code>a9f8...12c4</code>"]
-        Payload["Canonical Payload:<br/><code>v1|actor|action|res|outcome</code>"]
-        CurrH["Current Hash:<br/><b>SHA-256(PrevHash + Payload)</b>"]
+        PrevH["Previous Hash:<br/>a9f8...12c4"]
+        Payload["Canonical Payload:<br/>v1 / actor / action / res / outcome"]
+        CurrH["Current Hash:<br/>SHA-256(PrevHash + Payload)"]
         PrevH --> CurrH
         Payload --> CurrH
     end
 
     subgraph Event3 ["Event N+1"]
-        NextPrev["Previous Hash:<br/><code>CurrH</code>"]
+        NextPrev["Previous Hash:<br/>CurrH"]
     end
 
     H1 --> PrevH
@@ -523,7 +523,7 @@ For deep dives into the platform's security mechanisms, explore the dedicated do
 
 <div align="center">
 
-### Built by **Rahul Sharma**
+### Built with care by **Rahul Sharma**
 *Zero-Trust Security • Backend Engineering • Distributed Systems*
 
 [![GitHub](https://img.shields.io/badge/GitHub-RASH--2137-181717?style=flat&logo=github)](https://github.com/RASH-2137)
