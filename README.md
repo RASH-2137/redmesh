@@ -523,7 +523,7 @@ For deep dives into the platform's security mechanisms, explore the dedicated do
 
 <div align="center">
 
-### Built with care by **Rahul Sharma**
+### Built by **Rahul Sharma**
 *Zero-Trust Security • Backend Engineering • Distributed Systems*
 
 [![GitHub](https://img.shields.io/badge/GitHub-RASH--2137-181717?style=flat&logo=github)](https://github.com/RASH-2137)
