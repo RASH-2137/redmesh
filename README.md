@@ -241,7 +241,9 @@ The live application includes an **Evaluation Personas (Demo Mode)** switcher so
 │   • Elena (Commander / NAV-04)    • Marcus (Auditor / HQ)              │
 └────────────────────────────────────────────────────────────────────────┘
 ```
-*(Upload your screenshot here: `![Sign In](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/signin.png)`)*
+*<img width="530" height="260" alt="Screenshot 2026-09-29 163630" src="https://github.com/user-attachments/assets/0fa7b156-0fff-4e40-9181-f0733120fb2a" />*
+*<img width="530" height="260" alt="Screenshot 2026-09-29 163403" src="https://github.com/user-attachments/assets/710c216f-1dca-4855-b773-160f6f738db6" />*
+
 
 <br/>
 
@@ -257,7 +259,7 @@ The live application includes an **Evaluation Personas (Demo Mode)** switcher so
 │  • Hydraulic Actuator   [CONFID.]      Status: [ PENDING COMMANDER ]   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
-*(Upload your screenshot here: `![Dashboard](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/dashboard.png)`)*
+*<img width="530" height="260" alt="Screenshot 2026-09-29 163328" src="https://github.com/user-attachments/assets/1c16affa-67d3-4b89-af37-021c9c5c1eef" />*
 
 <br/>
 
@@ -273,7 +275,7 @@ The live application includes an **Evaluation Personas (Demo Mode)** switcher so
 │  #5  2026-09-22  access_request.created   Hash: 11f0...9aa3 [OK]       │
 └────────────────────────────────────────────────────────────────────────┘
 ```
-*(Upload your screenshot here: `![Audit Log](https://raw.githubusercontent.com/RASH-2137/REDmesh/master/docs/screenshots/audit.png)`)*
+*<img width="530" height="260" alt="Screenshot 2026-09-29 163353" src="https://github.com/user-attachments/assets/737d55d1-b808-442e-bc5a-2baf59c8594a" />*
 
 </div>
 
